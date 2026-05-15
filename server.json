@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.pipeworx-io/ncbi-eutils",
+  "title": "Ncbi Eutils",
+  "description": "NCBI E-utilities — federated Entrez search/fetch (PubMed/Gene/Nucleotide/…)",
+  "version": "0.1.0",
+  "websiteUrl": "https://pipeworx.io/packs/ncbi-eutils",
+  "repository": {
+    "url": "https://github.com/pipeworx-io/mcp-ncbi-eutils",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://gateway.pipeworx.io/ncbi-eutils/mcp"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@pipeworx/mcp-ncbi-eutils",
+  "version": "0.1.0",
+  "description": "NCBI E-utilities — federated Entrez search/fetch (PubMed/Gene/Nucleotide/…)",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "keywords": ["mcp", "mcp-server", "model-context-protocol", "pipeworx", "ncbi-eutils"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pipeworx-io/mcp-ncbi-eutils"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
