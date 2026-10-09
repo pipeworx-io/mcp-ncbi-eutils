@@ -2,7 +2,7 @@
 
 NCBI [E-utilities](https://www.ncbi.nlm.nih.gov/books/NBK25500/) MCP — federated search and fetch across all NCBI Entrez databases: PubMed, Gene, Nucleotide, Protein, Taxonomy, ClinVar, dbSNP, OMIM, BioProject, BioSample, SRA, … Keyless (3 req/s without key).
 
-Part of [Pipeworx](https://pipeworx.io) — an MCP gateway connecting AI agents to 1683+ live data sources.
+Part of [Pipeworx](https://pipeworx.io) — an MCP gateway connecting AI agents to 1745+ live data sources. This is an independent, unofficial integration — not affiliated with, endorsed by, or published by the upstream provider.
 
 ## Tools
 
@@ -12,6 +12,8 @@ Part of [Pipeworx](https://pipeworx.io) — an MCP gateway connecting AI agents 
 - `efetch(db, ids, rettype?, retmode?)` — full records
 - `elink(dbfrom, dbto, ids, linkname?)` — links across databases
 - `egquery(term)` — global query across all databases
+- `geo_series(accession)` — a GEO (Gene Expression Omnibus) series by GSE accession: title, organism, sample count and GSM ids, platform id and name, experiment type, release date, summary, PubMed ids, BioProject, SRA study
+- `geo_search(query, organism?, type?, limit?)` — search GEO expression series by keyword, organism and experiment type
 
 ## Data source
 
@@ -61,7 +63,7 @@ directly, instead of just this one's:
 }
 ```
 
-Both URLs reach the same gateway and the same 1683+ data sources. The
+Both URLs reach the same gateway and the same 1745+ data sources. The
 only difference is which pack's tools are listed **directly**; `ask_pipeworx`
 reaches all of them from either one.
 

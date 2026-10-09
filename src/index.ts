@@ -763,6 +763,31 @@ const tools: McpToolExport['tools'] = [
       required: ['term'],
     },
   },
+  {
+    name: 'geo_series',
+    description: 'Look up an NCBI GEO (Gene Expression Omnibus) series by its GSE accession, e.g. GSE75310 -> title, organism, number of samples and their GSM ids, platform (GPL id and name), experiment type (expression profiling by array / high-throughput sequencing, methylation, ChIP-seq...), release date, summary, PubMed ids, BioProject and SRA study links. Use for any question naming a GSE expression series.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        accession: { type: 'string', description: 'GEO series accession, e.g. "GSE75310"' },
+      },
+      required: ['accession'],
+    },
+  },
+  {
+    name: 'geo_search',
+    description: 'Search NCBI GEO (Gene Expression Omnibus) for expression series (GSE) by keywords, optionally filtered by organism and experiment type. Returns the matching series with title, organism, sample count, platform, type and release date, plus the total hit count. Follow up with geo_series for one accession.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Free-text terms, e.g. "dyskeratosis congenita" or "telomere RNA-seq"' },
+        organism: { type: 'string', description: 'Scientific name, e.g. "Homo sapiens", "Mus musculus"' },
+        type: { type: 'string', description: 'GEO experiment type, e.g. "Expression profiling by array", "Expression profiling by high throughput sequencing", "Methylation profiling by genome tiling array"' },
+        limit: { type: 'number', description: '1-50 (default 10)' },
+      },
+      required: ['query'],
+    },
+  },
 ];
 
 async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -815,9 +840,155 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
       params.set('term', reqStr(args, 'term', '"CRISPR"'));
       return ncbiJson(`/egquery.fcgi?${params}`);
     }
+    case 'geo_series':
+      return geoSeries(reqStr(args, 'accession', '"GSE75310"'));
+    case 'geo_search':
+      return geoSearch(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
+}
+
+// ── GEO (db=gds) ────────────────────────────────────────────────────────────
+// GEO numbers its gds uids by entry type: GSE<n> is uid 200000000+n and
+// GPL<n> is 100000000+n. geo_series reads those uids directly (two esummary
+// calls) and checks the returned accession, falling back to esearch on [ACCN]
+// when it does not match. Unauthenticated E-utilities allow 3 req/s, and a
+// four-call esearch/esummary chain trips that on its own, so every gds call
+// also retries once on 429.
+
+interface GdsSummary {
+  uid?: string;
+  accession?: string;
+  title?: string;
+  summary?: string;
+  gpl?: string;
+  taxon?: string;
+  entrytype?: string;
+  gdstype?: string;
+  pdat?: string;
+  n_samples?: number;
+  samples?: Array<{ accession: string; title: string }>;
+  pubmedids?: string[];
+  bioproject?: string;
+  extrelations?: Array<{ relationtype: string; targetobject: string; targetftplink?: string }>;
+  ftplink?: string;
+  suppfile?: string;
+  error?: string;
+}
+
+async function gdsJson(path: string): Promise<unknown> {
+  try {
+    return await ncbiJson(path);
+  } catch (e) {
+    if (!(e instanceof Error) || !e.message.includes('429')) throw e;
+    await new Promise((r) => setTimeout(r, 1100));
+    return ncbiJson(path);
+  }
+}
+
+async function gdsSearch(term: string, retmax: number): Promise<{ count: number; ids: string[] }> {
+  const params = baseParams();
+  params.set('db', 'gds');
+  params.set('term', term);
+  params.set('retmax', String(retmax));
+  const data = (await gdsJson(`/esearch.fcgi?${params}`)) as {
+    esearchresult?: { count?: string; idlist?: string[]; ERROR?: string };
+  };
+  const r = data.esearchresult;
+  if (!r || r.ERROR) throw new Error(`NCBI GEO esearch failed: ${r?.ERROR ?? 'no esearchresult in response'}`);
+  return { count: Number(r.count ?? 0), ids: r.idlist ?? [] };
+}
+
+async function gdsSummaries(ids: string[]): Promise<GdsSummary[]> {
+  if (!ids.length) return [];
+  const params = baseParams();
+  params.set('db', 'gds');
+  params.set('id', ids.join(','));
+  const data = (await gdsJson(`/esummary.fcgi?${params}`)) as {
+    result?: Record<string, GdsSummary> & { uids?: string[] };
+  };
+  const result = data.result;
+  if (!result) throw new Error('NCBI GEO esummary returned no result block');
+  return (result.uids ?? []).map((u) => result[u] as GdsSummary).filter((r) => r && !r.error);
+}
+
+function gplIds(gpl: string | undefined): string[] {
+  return (gpl ?? '').split(';').map((g) => g.trim()).filter(Boolean).map((g) => `GPL${g}`);
+}
+
+function geoLink(acc: string): string {
+  return `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${acc}`;
+}
+
+function seriesBrief(r: GdsSummary) {
+  return {
+    accession: r.accession,
+    title: r.title,
+    organism: r.taxon,
+    type: r.gdstype,
+    n_samples: r.n_samples,
+    platforms: gplIds(r.gpl),
+    release_date: r.pdat?.replace(/\//g, '-'),
+    url: r.accession ? geoLink(r.accession) : undefined,
+  };
+}
+
+async function geoSeries(raw: string) {
+  const accession = raw.trim().toUpperCase();
+  if (!/^GSE\d+$/.test(accession)) {
+    throw new Error(`"${raw}" is not a GEO series accession. Pass one like "GSE75310" (GSE followed by digits).`);
+  }
+  const n = Number(accession.slice(3));
+  let series = n < 100000000 ? (await gdsSummaries([String(200000000 + n)])).find((r) => r.accession === accession) : undefined;
+  if (!series) {
+    const { ids } = await gdsSearch(`${accession}[ACCN] AND gse[ETYP]`, 5);
+    series = (await gdsSummaries(ids)).find((r) => r.accession === accession);
+  }
+  if (!series) {
+    return { found: false, accession, message: `GEO has no public series ${accession} (it may be private until publication, or the accession may be wrong).`, source: 'NCBI GEO via E-utilities (db=gds)' };
+  }
+  const platformAccs = gplIds(series.gpl);
+  let platforms: Array<{ accession: string; title?: string; organism?: string }> = platformAccs.map((a) => ({ accession: a }));
+  if (platformAccs.length) {
+    const sums = await gdsSummaries(platformAccs.map((a) => String(100000000 + Number(a.slice(3)))));
+    platforms = platformAccs.map((a) => {
+      const s = sums.find((x) => x.accession === a);
+      return { accession: a, title: s?.title, organism: s?.taxon };
+    });
+  }
+  const sra = (series.extrelations ?? []).filter((x) => x.relationtype === 'SRA').map((x) => x.targetobject);
+  return {
+    found: true,
+    accession: series.accession,
+    title: series.title,
+    organism: series.taxon,
+    type: series.gdstype,
+    n_samples: series.n_samples,
+    samples: (series.samples ?? []).map((x) => ({ accession: x.accession, title: x.title })),
+    platforms,
+    release_date: series.pdat?.replace(/\//g, '-'),
+    summary: series.summary,
+    pubmed_ids: series.pubmedids ?? [],
+    bioproject: series.bioproject || null,
+    sra_studies: sra,
+    supplementary_files: series.suppfile || null,
+    ftp: series.ftplink || null,
+    url: geoLink(accession),
+    source: 'NCBI GEO via E-utilities (db=gds)',
+  };
+}
+
+async function geoSearch(args: Record<string, unknown>) {
+  const query = reqStr(args, 'query', '"dyskeratosis congenita"');
+  const limit = Math.min(50, Math.max(1, Number(args.limit ?? 10) || 10));
+  const parts = [`(${query})`, 'gse[ETYP]'];
+  if (typeof args.organism === 'string' && args.organism.trim()) parts.push(`"${args.organism.trim()}"[ORGN]`);
+  if (typeof args.type === 'string' && args.type.trim()) parts.push(`"${args.type.trim()}"[GTYP]`);
+  const term = parts.join(' AND ');
+  const { count, ids } = await gdsSearch(term, limit);
+  const series = (await gdsSummaries(ids)).map(seriesBrief);
+  return { query: term, total: count, returned: series.length, series, source: 'NCBI GEO via E-utilities (db=gds)' };
 }
 
 function baseParams(): URLSearchParams {
