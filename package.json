@@ -1,12 +1,20 @@
 {
   "name": "@pipeworx/mcp-ncbi-eutils",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "NCBI E-utilities MCP — federated Entrez search/fetch.",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./tools.json": "./tools.json",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "mcp-ncbi-eutils": "bin/cli.js"
+  },
+  "files": ["bin/", "lib/", "tools.json", "server.json"],
+  "engines": {
+    "node": ">=18"
   },
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "pipeworx", "ncbi-eutils"],
   "license": "MIT",
@@ -14,19 +22,12 @@
     "type": "git",
     "url": "git+https://github.com/pipeworx-io/mcp-ncbi-eutils.git"
   },
-  "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "tsx": "^4.19.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "@cloudflare/workers-types": "^4.20260405.1"
-  },
+  "mcpName": "io.github.pipeworx-io/ncbi-eutils",
   "pipeworx": {
-    "sourceHash": "v1-cb946e8c8b1e14bea32f8c4d64f09356de61e22761b494460d3e31f63b880a6b",
-    "sourceCommit": "774de7f685a75e02d0b828d24a7b94794102152c"
+    "mode": "gateway",
+    "slug": "ncbi-eutils",
+    "gatewaySlug": "ncbi-eutils",
+    "sourceHash": "v1-1b1f1472da50330d029e5535eafd360d7bde5411def4872643f75744066ea43b",
+    "sourceCommit": "5c89d6abb778d45da5d92002eb251978622bedf9"
   }
 }
