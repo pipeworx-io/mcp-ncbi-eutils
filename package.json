@@ -1,6 +1,6 @@
 {
   "name": "@pipeworx/mcp-ncbi-eutils",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "NCBI E-utilities MCP — federated Entrez search/fetch.",
   "type": "module",
   "main": "lib/index.js",
@@ -27,7 +27,7 @@
     "mode": "gateway",
     "slug": "ncbi-eutils",
     "gatewaySlug": "ncbi-eutils",
-    "sourceHash": "v1-1b1f1472da50330d029e5535eafd360d7bde5411def4872643f75744066ea43b",
-    "sourceCommit": "5c89d6abb778d45da5d92002eb251978622bedf9"
+    "sourceHash": "v1-2217ec4643cd3a381d1d9b1fc414b4f07a8caa8acbaf721b5db85728c87fe4fe",
+    "sourceCommit": "56cf550e46fed96c0101a3877ccaf8357eecf016"
   }
 }
